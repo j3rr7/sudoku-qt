@@ -1,107 +1,123 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from random import sample
+import time
 
 
-# def generate_board(self):
-#     for i in range(9):
-#         for j in range(9):
-#             if self.board[i][j] == 0:
-#                 for num in range(1, 10):
-#                     if self.is_valid(i, j, num):
-#                         self.board[i][j] = num
-#                         if self.generate_board():
-#                             return True
-#                         self.board[i][j] = 0
-#                 return False
-#     return True
+# region Utility Decorator For Timing
+def timer_decorator(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"Execution time of {func.__name__}: {end_time - start_time} seconds")
+        return result
 
-# class Sudoku:
-#     def __init__(self):
-#         self.board = np.zeros((9, 9), dtype=int)
-#         self._rows = np.arange(9)
-#         self._cols = np.arange(9)
-#
-#         self.generate_board()
-#
-#     def generate_board(self):
-#         for i in self._rows:
-#             for j in self._cols:
-#                 if self.board[i][j] == 0:
-#                     valid_nums = [num for num in range(1, 10) if self.is_valid(i, j, num)]
-#                     if valid_nums:
-#                         for num in valid_nums:
-#                             self.board[i][j] = num
-#                             if self.generate_board():
-#                                 return True
-#                             self.board[i][j] = 0
-#                     return False
-#         return True
-#
-#     def regenerate_board(self):
-#         self.board = np.zeros((9, 9), dtype=int)
-#         self.generate_board()
-#
-#     def is_valid(self, row, col, num):
-#         if np.any(self.board[row] == num):
-#             return False
-#         if np.any(self.board[:, col] == num):
-#             return False
-#         start_row = row - row % 3
-#         start_col = col - col % 3
-#         if np.any(self.board[start_row:start_row + 3, start_col:start_col + 3] == num):
-#             return False
-#         return True
-#
-#     def mask_numbers(self, difficulty):
-#         num_to_mask = int(91 * difficulty)
-#         num_to_mask = min(num_to_mask, 81)  # Ensure num_to_mask does not exceed 81
-#         flattened_board = self.board.flatten()
-#         masked_indices = np.random.choice(np.arange(81), size=num_to_mask, replace=False)
-#         flattened_board[masked_indices] = 0
-#         # self.board = flattened_board.reshape(9, 9)
-#         return flattened_board.reshape(9, 9)
-#
-#     def print_board(self):
-#         print(self.board)
-#
+    return wrapper
 
+
+# endregion
 
 class Sudoku:
-    def __init__(self, base=3):
-        self.board = None
-        self.base = base
-        self.side = base * base
+    def __init__(self, size: int = 9):
+        self.size = size
+        self.board = np.zeros((size, size), dtype=int)
 
-    def pattern(self, r, c):
-        return (self.base * (r % self.base) + r // self.base + c) % self.side
+        self.reset_board()
 
-    def shuffle(self, s):
-        return sample(s, len(s))
+        # save the original board to solve it
+        self.solved_board = self.board.copy()
 
-    def generate_board(self):
-        rBase = range(self.base)
-        rows = [g * self.base + r for g in self.shuffle(rBase) for r in self.shuffle(rBase)]
-        cols = [g * self.base + c for g in self.shuffle(rBase) for c in self.shuffle(rBase)]
-        nums = self.shuffle(range(1, self.base * self.base + 1))
+    def reset_board(self):
+        if self.size is None:
+            return
 
-        # produce board using randomized baseline pattern
-        board = [[nums[self.pattern(r, c)] for c in cols] for r in rows]
+        self.board = np.zeros((self.size, self.size), dtype=int)
 
-        squares = self.side * self.side
-        empties = squares * 3 // 4
-        for _ in sample(range(squares), empties):
-            r, c = divmod(_, self.side)
-            board[r][c] = 0
+        # Fill the first index with shuffled numbers
+        numbers = np.arange(1, self.size + 1)
+        np.random.shuffle(numbers)
+        self.board[:, 0] = numbers
 
-        self.board = np.array(board)
+        self.solve_board()
+
+    def is_valid(self, num, pos):
+        # Check row
+        for i in range(len(self.board[0])):
+            if self.board[pos[0]][i] == num and pos[1] != i:
+                return False
+
+        # Check column
+        for i in range(len(self.board)):
+            if self.board[i][pos[1]] == num and pos[0] != i:
+                return False
+
+        # Check box
+        box_x = pos[1] // 3
+        box_y = pos[0] // 3
+        for i in range(box_y * 3, box_y * 3 + 3):
+            for j in range(box_x * 3, box_x * 3 + 3):
+                if self.board[i][j] == num and (i, j) != pos:
+                    return False
+        return True
+
+    def solve_board(self):
+        find = self.find_empty()
+        if not find:
+            return True
+        else:
+            row, col = find
+
+        for i in range(1, 10):
+            if self.is_valid(i, (row, col)):
+                self.board[row][col] = i
+
+                if self.solve_board():
+                    return True
+
+                self.board[row][col] = 0
+        return False
+
+    def find_empty(self):
+        for i in range(len(self.board)):
+            for j in range(len(self.board[0])):
+                if self.board[i][j] == 0:
+                    return i, j  # row, col
+        return None
 
     def print_board(self):
-        print(self.board)
+        for i in range(len(self.board)):
+            if i % 3 == 0 and i != 0:
+                print("- - - - - - - - - - - - - ")
+            for j in range(len(self.board[0])):
+                if j % 3 == 0 and j != 0:
+                    print(" | ", end="")
+                if j == 8:
+                    print(self.board[i][j])
+                else:
+                    print(str(self.board[i][j]) + " ", end="")
+
+    def remove_numbers(self, difficulty: float = 1, replace: bool = True):
+        masked_board = self.board if replace else self.board.copy()
+
+        # sorry, need to cap the difficulty between 0.2 and 0.8
+        difficulty = max(0.2, min(difficulty, 0.8))
+        for i in range(int(self.size * self.size * difficulty)):
+            row = np.random.randint(0, self.size)
+            col = np.random.randint(0, self.size)
+            masked_board[row][col] = 0
+
+        return masked_board
+
+    def get_solved_board(self):
+        return self.solved_board
+
+
+def test_sudoku():
+    sudoku = Sudoku()
+    sudoku.remove_numbers(0)
+    print(sudoku.board)
+    print(sudoku.get_solved_board())
 
 
 if __name__ == '__main__':
-    sudoku = Sudoku(base=3)
-    sudoku.generate_board()
-
-    print(sudoku.board)
+    test_sudoku()

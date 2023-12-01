@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
+import sys
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtCore import QTimer, QTime, QRegExp
 from PyQt5.QtGui import QRegExpValidator
-import sys
 from sudoku import Sudoku
-import numpy as np
-
 
 
 class Ui(QtWidgets.QMainWindow):
@@ -82,6 +80,9 @@ class Ui(QtWidgets.QMainWindow):
 
     def open_about_window(self):
         self.about_window = AboutWindow()
+        print(self.about_window)
+        print(dir(self.about_window))
+        print(help(self.about_window))
         self.about_window.show()
 
     def open_score_window(self):
@@ -105,4 +106,4 @@ class ScoreWindow(QtWidgets.QDialog):
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = Ui()
-    app.exec_()
+    app.exec()
