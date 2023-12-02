@@ -42,6 +42,13 @@ class Ui(QtWidgets.QMainWindow):
 
         self.toggle_board_enabled()  # disable the game board on start
 
+        # Setup Line Edit Change Events
+        for i in range(9):
+            for j in range(9):
+                self.button_matrix[i][j].textChanged[str].connect(
+                    self._on_line_edit_changed
+                )
+
     # region Setup Functions
 
     def _setup_timer(self) -> None:
@@ -68,6 +75,7 @@ class Ui(QtWidgets.QMainWindow):
     def _setup_buttons_events(self):
         self.btn_start.clicked.connect(self._on_start_clicked)
         self.btn_reset.clicked.connect(self._on_reset_clicked)
+        self.btn_cek.clicked.connect(self._on_check_click)
 
         self.rb_pemula.toggled.connect(self._on_toggle_difficulty)
         self.rb_menengah.toggled.connect(self._on_toggle_difficulty)
@@ -113,10 +121,6 @@ class Ui(QtWidgets.QMainWindow):
         self.update_board_text()
 
     def _on_toggle_difficulty(self):
-        # check if current difficulty is the same as get_difficulty()
-        # if not, remove numbers
-        # if yes, do nothing
-
         if self.current_difficulty == self.get_difficulty():
             return
 
@@ -127,12 +131,38 @@ class Ui(QtWidgets.QMainWindow):
         self.update_board_text()
 
     def _on_check_click(self):
-        # ToDo: Check if the answer is correct and find the number of wrong answers
-        pass
+        if not self.game_running:
+            print(self.sudoku.board)
+            return
 
-    def _on_line_edit_changed(self):
-        # ToDo: Add Event every time a line edit value is changed ( gameover )
-        pass
+        solution = self.sudoku.get_solved_board()
+        current_board = self.sudoku.board
+
+        for i in range(9):
+            for j in range(9):
+                if current_board[i][j] != solution[i][j]:
+                    self.button_matrix[i][j].setStyleSheet("background-color: red;")
+                else:
+                    self.button_matrix[i][j].setStyleSheet("")
+
+    def _on_line_edit_changed(self, text: str):
+        # Our Safety Check for empty string
+        if (
+                not isinstance(text, str)
+                or text is None
+                or text.isspace()
+                or not text.strip()
+        ):
+            return
+
+        line_edit_id = self.sender().objectName()  #
+        _, i, j = line_edit_id.split("_")
+        if self.sudoku.is_valid(int(text), (int(i), int(j))):
+            self.sudoku.board[int(i)][int(j)] = int(text)
+        # ============ ENABLE IF NEEDED ===========
+        #     self.button_matrix[int(i)][int(j)].setStyleSheet("")
+        # else:
+        #     self.button_matrix[int(i)][int(j)].setStyleSheet("background-color: red;")
 
     def _on_about_clicked(self):
         self.about_window = AboutWindow()
@@ -162,6 +192,10 @@ class Ui(QtWidgets.QMainWindow):
                     if self.button_matrix[i][j].text() == ""
                     else False
                 )
+        # toggle radio buttons
+        self.rb_pemula.setEnabled(not self.game_running)
+        self.rb_menengah.setEnabled(not self.game_running)
+        self.rb_mahir.setEnabled(not self.game_running)
 
     def toggle_timer_enabled(self):
         self.timer.start(1000) if self.game_running else self.timer.stop()
@@ -179,6 +213,11 @@ class Ui(QtWidgets.QMainWindow):
         self.sudoku.reset_board()
         self.current_difficulty = self.get_difficulty()
         self.sudoku.remove_numbers(self.current_difficulty)
+
+        # Reset Color
+        for i in range(9):
+            for j in range(9):
+                self.button_matrix[i][j].setStyleSheet("")
 
     def get_difficulty(self) -> float:
         """

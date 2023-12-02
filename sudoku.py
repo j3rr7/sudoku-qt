@@ -31,6 +31,7 @@ class Sudoku:
         # save the original board to solve it
         self.solved_board = self.board.copy()
 
+    @timer_decorator
     def reset_board(self):
         if self.size is None:
             return
@@ -97,6 +98,7 @@ class Sudoku:
                     return i, j  # row, col
         return None
 
+    @timer_decorator
     def print_board(self):
         for i in range(len(self.board)):
             if i % 3 == 0 and i != 0:
