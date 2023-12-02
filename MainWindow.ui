@@ -68,7 +68,7 @@
     <property name="title">
      <string/>
     </property>
-    <widget class="QWidget" name="verticalLayoutWidget">
+    <widget class="QGroupBox" name="rbGroupBox">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -76,6 +76,18 @@
        <width>121</width>
        <height>111</height>
       </rect>
+     </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">border:0;</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
@@ -252,7 +264,7 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>12</y>
       <width>400</width>
       <height>370</height>

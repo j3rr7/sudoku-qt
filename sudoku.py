@@ -17,8 +17,12 @@ def timer_decorator(func):
 
 # endregion
 
+
 class Sudoku:
+    @timer_decorator
     def __init__(self, size: int = 9):
+        self.memo = {}  # memoization
+
         self.size = size
         self.board = np.zeros((size, size), dtype=int)
 
@@ -39,6 +43,8 @@ class Sudoku:
         self.board[:, 0] = numbers
 
         self.solve_board()
+
+        self.solved_board = self.board.copy()  # save the original board to solve it
 
     def is_valid(self, num, pos):
         # Check row
@@ -61,20 +67,27 @@ class Sudoku:
         return True
 
     def solve_board(self):
+        key = tuple(map(tuple, self.board))
+        if key in self.memo:
+            return self.memo[key]
+
         find = self.find_empty()
         if not find:
             return True
         else:
             row, col = find
 
-        for i in range(1, 10):
+        for i in range(1, self.size + 1):
             if self.is_valid(i, (row, col)):
                 self.board[row][col] = i
 
                 if self.solve_board():
+                    self.memo[key] = True
                     return True
 
                 self.board[row][col] = 0
+
+        self.memo[key] = False
         return False
 
     def find_empty(self):
@@ -96,6 +109,7 @@ class Sudoku:
                 else:
                     print(str(self.board[i][j]) + " ", end="")
 
+    @timer_decorator
     def remove_numbers(self, difficulty: float = 1, replace: bool = True):
         masked_board = self.board if replace else self.board.copy()
 
@@ -109,7 +123,7 @@ class Sudoku:
         return masked_board
 
     def get_solved_board(self):
-        return self.solved_board
+        return self.solved_board.copy()
 
 
 def test_sudoku():
@@ -119,5 +133,5 @@ def test_sudoku():
     print(sudoku.get_solved_board())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_sudoku()
