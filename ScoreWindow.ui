@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>250</width>
-    <height>454</height>
+    <height>280</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,18 +22,42 @@
   <property name="minimumSize">
    <size>
     <width>250</width>
-    <height>0</height>
+    <height>280</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>300</width>
-    <height>16777215</height>
+    <width>250</width>
+    <height>280</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>High Score</string>
   </property>
+  <widget class="QWidget" name="verticalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>231</width>
+     <height>261</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QListWidget" name="list_scores"/>
+    </item>
+    <item>
+     <widget class="QComboBox" name="cb_difficulty">
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
  </widget>
  <resources/>
  <connections/>

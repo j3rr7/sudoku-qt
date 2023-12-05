@@ -29,7 +29,7 @@ class Sudoku:
         self.reset_board()
 
         # save the original board to solve it
-        self.solved_board = self.board.copy()
+        self.solution = self.board.copy()
 
     @timer_decorator
     def reset_board(self):
@@ -45,7 +45,7 @@ class Sudoku:
 
         self.solve_board()
 
-        self.solved_board = self.board.copy()  # save the original board to solve it
+        self.solution = self.board.copy()  # save the original board to solve it
 
     def is_valid(self, num, pos):
         # Check row
@@ -124,15 +124,15 @@ class Sudoku:
 
         return masked_board
 
-    def get_solved_board(self):
-        return self.solved_board.copy()
+    def get_solution(self):
+        return self.solution.copy()
 
 
 def test_sudoku():
     sudoku = Sudoku()
     sudoku.remove_numbers(0)
     print(sudoku.board)
-    print(sudoku.get_solved_board())
+    print(sudoku.get_solution())
 
 
 if __name__ == "__main__":

@@ -1,14 +1,28 @@
 # -*- coding: utf-8 -*-
+import contextlib
+import itertools
 import sys
+import csv
+from operator import itemgetter
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtCore import QTimer, QTime, QRegExp
 from PyQt5.QtGui import QRegExpValidator
-from PyQt5.QtWidgets import QRadioButton, QMessageBox
+from PyQt5.QtWidgets import (
+    QRadioButton,
+    QMessageBox,
+    QDialog,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QComboBox,
+    QListWidget,
+)
 from sudoku import Sudoku
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple
 
 
-class Highscore:
+class Scores:
     def __init__(self, name, difficulty, time):
         self.name = name
         self.difficulty = difficulty
@@ -32,7 +46,7 @@ class Ui(QtWidgets.QMainWindow):
 
         self.current_difficulty = 0.0
 
-        self.highscores: List[Highscore] = []
+        self.scores: List[Scores] = []
 
         # Setup
         self._setup_timer()
@@ -42,12 +56,13 @@ class Ui(QtWidgets.QMainWindow):
 
         self.toggle_board_enabled()  # disable the game board on start
 
+        self._load_scores()  # Load Scores
+
         # Setup Line Edit Change Events
-        for i in range(9):
-            for j in range(9):
-                self.button_matrix[i][j].textChanged[str].connect(
-                    self._on_line_edit_changed
-                )
+        for i, j in itertools.product(range(9), range(9)):
+            self.button_matrix[i][j].textChanged[str].connect(
+                self._on_line_edit_changed
+            )
 
     # region Setup Functions
 
@@ -64,13 +79,12 @@ class Ui(QtWidgets.QMainWindow):
         ]
 
         # setup line edits and set input validation to one numerical character from 1 to size + 1
-        for i in range(9):
-            for j in range(9):
-                le_name = f"le_{i}_{j}"  # find name of line edit based on row and col
-                line_edit = self.findChild(QtWidgets.QLineEdit, le_name)
-                line_edit.setMaxLength(1)
-                line_edit.setValidator(rx)
-                self.button_matrix[i][j] = line_edit
+        for i, j in itertools.product(range(9), range(9)):
+            le_name = f"le_{i}_{j}"  # find name of line edit based on row and col
+            line_edit = self.findChild(QtWidgets.QLineEdit, le_name)
+            line_edit.setMaxLength(1)
+            line_edit.setValidator(rx)
+            self.button_matrix[i][j] = line_edit
 
     def _setup_buttons_events(self):
         self.btn_start.clicked.connect(self._on_start_clicked)
@@ -110,6 +124,10 @@ class Ui(QtWidgets.QMainWindow):
 
             # Show MessageBox
             msgBox = QMessageBox()
+            # Reset Board Color
+            for i, j in itertools.product(range(9), range(9)):
+                self.button_matrix[i][j].setStyleSheet("")
+
             msgBox.setIcon(QMessageBox.Warning)
             msgBox.setText("Game Stopped")
             msgBox.setWindowTitle("Game Over")
@@ -125,25 +143,29 @@ class Ui(QtWidgets.QMainWindow):
             return
 
         self.current_difficulty = self.get_difficulty()
-        self.sudoku.board = self.sudoku.get_solved_board()
+        self.sudoku.board = self.sudoku.get_solution()
         self.sudoku.remove_numbers(self.current_difficulty)
 
         self.update_board_text()
 
     def _on_check_click(self):
+        # TODO : Clean Up This
         if not self.game_running:
             print(self.sudoku.board)
+            print("\n")
+            print(self.sudoku.solution)
             return
 
-        solution = self.sudoku.get_solved_board()
+        solution = self.sudoku.get_solution()
         current_board = self.sudoku.board
+        self.sudoku.board = solution  # should be done
 
-        for i in range(9):
-            for j in range(9):
-                if current_board[i][j] != solution[i][j]:
-                    self.button_matrix[i][j].setStyleSheet("background-color: red;")
-                else:
-                    self.button_matrix[i][j].setStyleSheet("")
+        # Update Color Based on Solution
+        for i, j in itertools.product(range(9), range(9)):
+            if current_board[i][j] != solution[i][j]:
+                self.button_matrix[i][j].setStyleSheet("background-color: red;")
+            else:
+                self.button_matrix[i][j].setStyleSheet("")
 
     def _on_line_edit_changed(self, text: str):
         # Our Safety Check for empty string
@@ -159,17 +181,23 @@ class Ui(QtWidgets.QMainWindow):
         _, i, j = line_edit_id.split("_")
         if self.sudoku.is_valid(int(text), (int(i), int(j))):
             self.sudoku.board[int(i)][int(j)] = int(text)
-        # ============ ENABLE IF NEEDED ===========
-        #     self.button_matrix[int(i)][int(j)].setStyleSheet("")
-        # else:
-        #     self.button_matrix[int(i)][int(j)].setStyleSheet("background-color: red;")
+            # ============ ENABLE/DISABLE IF NEEDED ===========
+            # Will be used in case of invalid input on current row and cell will be red
+            # =========================================
+            self.button_matrix[int(i)][int(j)].setStyleSheet("")
+        else:
+            self.button_matrix[int(i)][int(j)].setStyleSheet("background-color: red;")
+
+        # Check if board and solution are the same
+        if self.sudoku.board.all() == self.sudoku.get_solution().all():
+            self.game_over()
 
     def _on_about_clicked(self):
         self.about_window = AboutWindow()
         self.about_window.show()
 
     def _on_highscore_clicked(self):
-        self.score_window = ScoreWindow()
+        self.score_window = ScoreWindow(self.scores)
         self.score_window.show()
 
     def _on_update_timer(self):
@@ -185,13 +213,12 @@ class Ui(QtWidgets.QMainWindow):
         self.btn_start.setText("Stop" if self.game_running else "Start")
 
     def toggle_board_enabled(self):
-        for i in range(9):
-            for j in range(9):
-                self.button_matrix[i][j].setEnabled(
-                    self.game_running
-                    if self.button_matrix[i][j].text() == ""
-                    else False
-                )
+        # set all button to enabled and disabled based on game_running
+        for i, j in itertools.product(range(9), range(9)):
+            self.button_matrix[i][j].setEnabled(
+                self.game_running if self.button_matrix[i][j].text() == "" else False
+            )
+
         # toggle radio buttons
         self.rb_pemula.setEnabled(not self.game_running)
         self.rb_menengah.setEnabled(not self.game_running)
@@ -214,32 +241,61 @@ class Ui(QtWidgets.QMainWindow):
         self.current_difficulty = self.get_difficulty()
         self.sudoku.remove_numbers(self.current_difficulty)
 
-        # Reset Color
-        for i in range(9):
-            for j in range(9):
-                self.button_matrix[i][j].setStyleSheet("")
+        self.update_board_text()
 
-    def get_difficulty(self) -> float:
+        # Reset Color
+        for i, j in itertools.product(range(9), range(9)):
+            self.button_matrix[i][j].setStyleSheet("")
+
+    def get_difficulty(
+            self, include_string: bool = False
+    ) -> Union[float, Tuple[float, str]]:
         """
         Get difficulty from radio button
+
+        Args:
+        include_string: Whether to include the difficulty string in the return value
+
+        Returns:
+        The difficulty as a float. If include_string is True, it also returns the difficulty string.
         """
         if self.rb_pemula.isChecked():
-            return 0.2
+            return (0.2, "Pemula") if include_string else 0.2
         elif self.rb_menengah.isChecked():
-            return 0.5
+            return (0.5, "Menengah") if include_string else 0.5
         elif self.rb_mahir.isChecked():
-            return 0.8
+            return (0.8, "Mahir") if include_string else 0.8
 
     def update_board_text(self):
-        for i in range(9):
-            for j in range(9):
-                self.button_matrix[i][j].setText(
-                    str(self.sudoku.board[i][j]) if self.sudoku.board[i][j] != 0 else ""
-                )
+        for i, j in itertools.product(range(9), range(9)):
+            self.button_matrix[i][j].setText(
+                str(self.sudoku.board[i][j]) if self.sudoku.board[i][j] != 0 else ""
+            )
 
     def reset_timer(self):
         self.timer_counter = QTime(0, 0, 0)
         self.lbl_timer.setText(self.timer_counter.toString("HH:mm:ss"))
+
+    def game_over(self):
+        # stop timer
+        self.timer.stop()
+
+        # Add Prompt to insert name using pyqt
+        name_dialog = NameDialog(self)
+        if name_dialog.exec_() == QDialog.Accepted:
+            name = name_dialog.name_input.text()
+
+            self.scores.append(
+                Scores(
+                    name=name,
+                    difficulty=self.get_difficulty(include_string=True)[1],
+                    time=self.timer_counter.toString("HH:mm:ss"),
+                )
+            )
+
+            self._save_scores()
+
+        self.reset_game()
 
     # endregion
 
@@ -248,18 +304,26 @@ class Ui(QtWidgets.QMainWindow):
     def _save_scores(self):
         """
         Save highscores to file
-
-        ToDo: Implement
         """
-        pass
+        with contextlib.suppress(FileNotFoundError):
+            with open("highscores.csv", "w", newline="") as f:
+                writer = csv.writer(f)
+                if f.tell() == 0:
+                    writer.writerow(["Name", "Difficulty", "Time"])
+                for scores in self.scores:
+                    writer.writerow([scores.name, scores.difficulty, scores.time])
 
     def _load_scores(self):
         """
         Load highscores from file
-
-        ToDo: Implement
         """
-        pass
+        with contextlib.suppress(FileNotFoundError):
+            with open("highscores.csv", "r") as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    self.scores.append(
+                        Scores(name=row[0], difficulty=row[1], time=row[2])
+                    )
 
     # endregion
 
@@ -271,9 +335,60 @@ class AboutWindow(QtWidgets.QDialog):
 
 
 class ScoreWindow(QtWidgets.QDialog):
-    def __init__(self):
+    def __init__(self, scores):
         super(ScoreWindow, self).__init__()
         uic.loadUi("ScoreWindow.ui", self)
+        self.scores = scores
+
+        self.cb_difficulty.currentIndexChanged.connect(self.update_scores)
+        self.cb_difficulty.insertItem(0, "Pemula")
+        self.cb_difficulty.insertItem(1, "Menengah")
+        self.cb_difficulty.insertItem(2, "Mahir")
+
+    def update_scores(self):
+        current_idx = self.cb_difficulty.currentIndex()
+        self.list_scores.clear()
+
+        if current_idx == 0:
+            self.find_5_highest_score("Pemula")
+        elif current_idx == 1:
+            self.find_5_highest_score("Menengah")
+        elif current_idx == 2:
+            self.find_5_highest_score("Mahir")
+
+    def find_5_highest_score(self, difficulty: str):
+        diff_scores = [
+            scores for scores in self.scores if scores.difficulty == difficulty
+        ]
+        sorted_scores = sorted(diff_scores, key=lambda x: x.time, reverse=True)[:5]
+        for scores in sorted_scores:
+            self.list_scores.insertItem(
+                0, f"Nama : {scores.name}, Waktu : {scores.time}"
+            )
+
+
+class NameDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Insert Name")
+
+        self.name_label = QLabel("Enter your name:")
+        self.name_input = QLineEdit()
+
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.clicked.connect(self.submit_name)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.name_input)
+        layout.addWidget(self.submit_button)
+
+        self.setLayout(layout)
+
+    def submit_name(self):
+        name = self.name_input.text()
+        # Do something with the name, e.g. save it or display it
+        self.accept()
 
 
 def main():
