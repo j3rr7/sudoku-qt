@@ -146,9 +146,6 @@ class Ui(QtWidgets.QMainWindow):
         self.update_board_text()
 
     def _on_check_click(self):
-        if not self.game_running:
-            return
-
         solution = self.sudoku.get_solution()
 
         dialog = QDialog(self)
@@ -166,27 +163,28 @@ class Ui(QtWidgets.QMainWindow):
         main_layout.addLayout(grid_layout)
 
         if self.player_name:
-            layout = QVBoxLayout()
-            layout.addWidget(QLabel(f"Your name: {self.player_name}"))
-            layout.addWidget(QLabel(f"=== Scores ==="))
-            player_scores = sorted(
-                [score for score in self.scores if score.name == self.player_name],
-                key=lambda x: x.time,
-                reverse=True,
-            )
-            grouped_scores = itertools.groupby(
-                player_scores, key=lambda x: x.difficulty
-            )
-            for difficulty, scores in grouped_scores:
-                print(f"Difficulty: {difficulty}")
-                top_scores = list(scores)[:5]
-                for score in top_scores:
-                    layout.addWidget(QLabel(f"{score.difficulty} - {score.time}"))
-            main_layout.addLayout(layout)
+            self._show_scores(main_layout)
 
         dialog.setLayout(main_layout)
         dialog.setMinimumSize(200, 200)
         dialog.show()
+
+    def _show_scores(self, main_layout):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel(f"Your name: {self.player_name}"))
+        layout.addWidget(QLabel("=== Scores ==="))
+        player_scores = sorted(
+            [score for score in self.scores if score.name == self.player_name],
+            key=lambda x: x.time,
+            reverse=True,
+        )
+        grouped_scores = itertools.groupby(player_scores, key=lambda x: x.difficulty)
+        for difficulty, scores in grouped_scores:
+            print(f"Difficulty: {difficulty}")
+            top_scores = list(scores)[:5]
+            for score in top_scores:
+                layout.addWidget(QLabel(f"{score.difficulty} - {score.time}"))
+        main_layout.addLayout(layout)
 
         # Update Color Based on Solution (Optional)
         # for i, j in itertools.product(range(9), range(9)):
@@ -258,6 +256,7 @@ class Ui(QtWidgets.QMainWindow):
     def reset_game(self):
         if self.game_running:
             self._setup_buttons_and_timer()
+
         # Reset Timer
         self.reset_timer()
 
