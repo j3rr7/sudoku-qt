@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import time
+import itertools
 
 
 # region Utility Decorator For Timing
@@ -19,7 +20,6 @@ def timer_decorator(func):
 
 
 class Sudoku:
-    @timer_decorator
     def __init__(self, size: int = 9):
         self.memo = {}  # memoization
 
@@ -31,7 +31,6 @@ class Sudoku:
         # save the original board to solve it
         self.solution = self.board.copy()
 
-    @timer_decorator
     def reset_board(self):
         if self.size is None:
             return
@@ -61,22 +60,22 @@ class Sudoku:
         # Check box
         box_x = pos[1] // 3
         box_y = pos[0] // 3
-        for i in range(box_y * 3, box_y * 3 + 3):
-            for j in range(box_x * 3, box_x * 3 + 3):
-                if self.board[i][j] == num and (i, j) != pos:
-                    return False
-        return True
+        return not any(
+            self.board[i][j] == num and (i, j) != pos
+            for i, j in itertools.product(
+                range(box_y * 3, box_y * 3 + 3), range(box_x * 3, box_x * 3 + 3)
+            )
+        )
 
     def solve_board(self):
         key = tuple(map(tuple, self.board))
         if key in self.memo:
             return self.memo[key]
 
-        find = self.find_empty()
-        if not find:
-            return True
-        else:
+        if find := self.find_empty():
             row, col = find
+        else:
+            return True
 
         for i in range(1, self.size + 1):
             if self.is_valid(i, (row, col)):
@@ -92,32 +91,38 @@ class Sudoku:
         return False
 
     def find_empty(self):
-        for i in range(len(self.board)):
-            for j in range(len(self.board[0])):
-                if self.board[i][j] == 0:
-                    return i, j  # row, col
-        return None
+        return next(
+            (
+                (i, j)
+                for i, j in itertools.product(
+                    range(len(self.board)), range(len(self.board[0]))
+                )
+                if self.board[i][j] == 0
+            ),
+            None,
+        )
 
-    @timer_decorator
-    def print_board(self):
-        for i in range(len(self.board)):
+    def print_board(self, board=None):
+        if board is None:
+            board = self.board
+
+        for i in range(len(board)):
             if i % 3 == 0 and i != 0:
                 print("- - - - - - - - - - - - - ")
-            for j in range(len(self.board[0])):
+            for j in range(len(board[0])):
                 if j % 3 == 0 and j != 0:
                     print(" | ", end="")
                 if j == 8:
-                    print(self.board[i][j])
+                    print(board[i][j])
                 else:
-                    print(str(self.board[i][j]) + " ", end="")
+                    print(f"{str(board[i][j])} ", end="")
 
-    @timer_decorator
     def remove_numbers(self, difficulty: float = 1, replace: bool = True):
         masked_board = self.board if replace else self.board.copy()
 
         # sorry, need to cap the difficulty between 0.2 and 0.8
         difficulty = max(0.2, min(difficulty, 0.8))
-        for i in range(int(self.size * self.size * difficulty)):
+        for _ in range(int(self.size * self.size * difficulty)):
             row = np.random.randint(0, self.size)
             col = np.random.randint(0, self.size)
             masked_board[row][col] = 0

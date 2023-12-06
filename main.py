@@ -3,20 +3,17 @@ import contextlib
 import itertools
 import sys
 import csv
-from operator import itemgetter
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import QTimer, QTime, QRegExp
+from PyQt5.QtCore import QTimer, QTime, QRegExp, Qt
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtWidgets import (
-    QRadioButton,
     QMessageBox,
     QDialog,
     QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
-    QComboBox,
-    QListWidget,
+    QGridLayout,
 )
 from sudoku import Sudoku
 from typing import List, Optional, Union, Tuple
@@ -113,10 +110,7 @@ class Ui(QtWidgets.QMainWindow):
     # region Events Functions
 
     def _on_start_clicked(self):
-        self.toggle_start_button_text()
-        self.toggle_board_enabled()
-        self.toggle_timer_enabled()
-
+        self._setup_buttons_and_timer()
         # if game is not running
         if not self.game_running:
             # reset timer
@@ -149,31 +143,40 @@ class Ui(QtWidgets.QMainWindow):
         self.update_board_text()
 
     def _on_check_click(self):
-        # TODO : Clean Up This
         if not self.game_running:
-            print(self.sudoku.board)
-            print("\n")
-            print(self.sudoku.solution)
             return
 
         solution = self.sudoku.get_solution()
-        current_board = self.sudoku.board
-        self.sudoku.board = solution  # should be done
 
-        # Update Color Based on Solution
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Cek Dialog")
+        dialog.setModal(False)
+
+        layout = QGridLayout()
+
         for i, j in itertools.product(range(9), range(9)):
-            if current_board[i][j] != solution[i][j]:
-                self.button_matrix[i][j].setStyleSheet("background-color: red;")
-            else:
-                self.button_matrix[i][j].setStyleSheet("")
+            label = QLabel(str(solution[i][j]))
+            label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(label, i, j)
+
+        dialog.setLayout(layout)
+        dialog.setFixedSize(200, 200)
+        dialog.show()
+
+        # Update Color Based on Solution (Optional)
+        # for i, j in itertools.product(range(9), range(9)):
+        #     if current_board[i][j] != solution[i][j]:
+        #         self.button_matrix[i][j].setStyleSheet("background-color: red;")
+        #     else:
+        #         self.button_matrix[i][j].setStyleSheet("")
 
     def _on_line_edit_changed(self, text: str):
         # Our Safety Check for empty string
         if (
-                not isinstance(text, str)
-                or text is None
-                or text.isspace()
-                or not text.strip()
+            not isinstance(text, str)
+            or text is None
+            or text.isspace()
+            or not text.strip()
         ):
             return
 
@@ -229,10 +232,7 @@ class Ui(QtWidgets.QMainWindow):
 
     def reset_game(self):
         if self.game_running:
-            self.toggle_start_button_text()
-            self.toggle_board_enabled()
-            self.toggle_timer_enabled()
-
+            self._setup_buttons_and_timer()
         # Reset Timer
         self.reset_timer()
 
@@ -247,8 +247,13 @@ class Ui(QtWidgets.QMainWindow):
         for i, j in itertools.product(range(9), range(9)):
             self.button_matrix[i][j].setStyleSheet("")
 
+    def _setup_buttons_and_timer(self):
+        self.toggle_start_button_text()
+        self.toggle_board_enabled()
+        self.toggle_timer_enabled()
+
     def get_difficulty(
-            self, include_string: bool = False
+        self, include_string: bool = False
     ) -> Union[float, Tuple[float, str]]:
         """
         Get difficulty from radio button
