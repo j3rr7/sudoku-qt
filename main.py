@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import contextlib
 import itertools
+import os
 import sys
 import csv
 from PyQt5 import QtWidgets, uic
@@ -14,6 +15,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QGridLayout,
+    QHBoxLayout,
 )
 from sudoku import Sudoku
 from typing import List, Optional, Union, Tuple
@@ -35,6 +37,7 @@ class Ui(QtWidgets.QMainWindow):
         self.sudoku = None
         self.about_window = None
         self.score_window = None
+        self.player_name = None
 
         self.game_running = False
 
@@ -149,18 +152,40 @@ class Ui(QtWidgets.QMainWindow):
         solution = self.sudoku.get_solution()
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Cek Dialog")
+        dialog.setWindowTitle("Cek")
         dialog.setModal(False)
 
-        layout = QGridLayout()
+        main_layout = QVBoxLayout()
+        grid_layout = QGridLayout()
 
         for i, j in itertools.product(range(9), range(9)):
             label = QLabel(str(solution[i][j]))
             label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(label, i, j)
+            grid_layout.addWidget(label, i, j)
 
-        dialog.setLayout(layout)
-        dialog.setFixedSize(200, 200)
+        main_layout.addLayout(grid_layout)
+
+        if self.player_name:
+            layout = QVBoxLayout()
+            layout.addWidget(QLabel(f"Your name: {self.player_name}"))
+            layout.addWidget(QLabel(f"=== Scores ==="))
+            player_scores = sorted(
+                [score for score in self.scores if score.name == self.player_name],
+                key=lambda x: x.time,
+                reverse=True,
+            )
+            grouped_scores = itertools.groupby(
+                player_scores, key=lambda x: x.difficulty
+            )
+            for difficulty, scores in grouped_scores:
+                print(f"Difficulty: {difficulty}")
+                top_scores = list(scores)[:5]
+                for score in top_scores:
+                    layout.addWidget(QLabel(f"{score.difficulty} - {score.time}"))
+            main_layout.addLayout(layout)
+
+        dialog.setLayout(main_layout)
+        dialog.setMinimumSize(200, 200)
         dialog.show()
 
         # Update Color Based on Solution (Optional)
@@ -290,6 +315,8 @@ class Ui(QtWidgets.QMainWindow):
         if name_dialog.exec_() == QDialog.Accepted:
             name = name_dialog.name_input.text()
 
+            self.player_name = name
+
             self.scores.append(
                 Scores(
                     name=name,
@@ -313,7 +340,7 @@ class Ui(QtWidgets.QMainWindow):
         with contextlib.suppress(FileNotFoundError):
             with open("highscores.csv", "w", newline="") as f:
                 writer = csv.writer(f)
-                if f.tell() == 0:
+                if os.fstat(f.fileno()).st_size == 0:
                     writer.writerow(["Name", "Difficulty", "Time"])
                 for scores in self.scores:
                     writer.writerow([scores.name, scores.difficulty, scores.time])
