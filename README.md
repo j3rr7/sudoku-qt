@@ -9,7 +9,7 @@
 ## How to run (Manual)
 1. `python -m venv venv` (or `python3`)
 2. `pip install -r requirements.txt`
-3. `venv\Scripts\activate` (Windows) or `venv/bin/activare` (Linux)
+3. `venv\Scripts\activate` (Windows) or `venv/bin/activate` (Linux)
 4. `python main.py`
 
 ## Game UI
